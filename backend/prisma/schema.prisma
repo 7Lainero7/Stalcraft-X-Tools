@@ -1,0 +1,222 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique
+  email        String   @unique
+  passwordHash String   @map("password_hash")
+  role         UserRole @default(USER)
+  isActive     Boolean  @default(true) @map("is_active")
+
+  builds     Build[]
+  buildLikes BuildLike[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("users")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  MODERATOR
+}
+
+model Armor {
+  id                   String @id
+  category             String
+  class                String
+  rank                 String
+  color                String
+  state                String
+  weight               Float
+  durability           Float
+  max_durability       Float
+  description          String
+  compatibleBackpacks  String
+  compatibleContainers String
+  iconUrl              String
+
+  names  ArmorName[]
+  stats  ArmorStat[]
+  builds Build[]     @relation("ArmorInBuild")
+}
+
+model ArmorName {
+  id      Int    @id @default(autoincrement())
+  armor   Armor  @relation(fields: [armorId], references: [id])
+  armorId String
+  lang    String
+  name    String
+}
+
+model ArmorStat {
+  id      Int    @id @default(autoincrement())
+  armor   Armor  @relation(fields: [armorId], references: [id])
+  armorId String
+  statKey String
+  value   Float
+}
+
+model ArmorStatLabel {
+  id      Int    @id @default(autoincrement())
+  statKey String
+  lang    String
+  label   String
+}
+
+model Artefact {
+  id            String  @id
+  category      String
+  artefactClass String
+  color         String
+  state         String
+  weight        Float
+  durability    Float
+  maxDurability Float
+  price         Float?
+  freshness     String?
+  description   String
+  iconUrl       String
+
+  names          ArtefactName[]
+  effects        ArtefactEffect[]
+  buildArtefacts BuildArtefact[]
+}
+
+model ArtefactName {
+  id         Int      @id @default(autoincrement())
+  artefact   Artefact @relation(fields: [artefactId], references: [id])
+  artefactId String
+  lang       String
+  name       String
+}
+
+model ArtefactEffect {
+  id         Int      @id @default(autoincrement())
+  artefact   Artefact @relation(fields: [artefactId], references: [id])
+  artefactId String
+  effectKey  String
+  minValue   Float
+  maxValue   Float
+}
+
+model ArtefactEffectLabel {
+  id        Int    @id @default(autoincrement())
+  effectKey String
+  lang      String
+  label     String
+}
+
+model Container {
+  id             String @id
+  category       String // containers
+  containerClass String
+  rank           String
+  color          String
+  state          String
+  weight         Float
+  capacity       Float?
+  iconUrl        String
+  description    String
+
+  names  ContainerName[]
+  stats  ContainerStat[]
+  builds Build[]         @relation("ContainerInBuild")
+}
+
+model ContainerName {
+  id          Int       @id @default(autoincrement())
+  container   Container @relation(fields: [containerId], references: [id])
+  containerId String
+  lang        String
+  name        String
+}
+
+model ContainerStat {
+  id          Int       @id @default(autoincrement())
+  container   Container @relation(fields: [containerId], references: [id])
+  containerId String
+  statKey     String
+  value       Float
+}
+
+model ContainerStatLabel {
+  id      Int    @id @default(autoincrement())
+  statKey String
+  lang    String
+  label   String
+}
+
+model Build {
+  id     Int  @id @default(autoincrement())
+  userId Int  @map("user_id")
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?
+
+  buildData Json @map("build_data")
+
+  armorId String? @map("armor_id")
+  armor   Armor?  @relation("ArmorInBuild", fields: [armorId], references: [id])
+
+  containerId String?    @map("container_id")
+  container   Container? @relation("ContainerInBuild", fields: [containerId], references: [id])
+
+  artefacts BuildArtefact[] // Many-to-many
+
+  totalStats  Json?  @map("total_stats")
+  totalWeight Float? @map("total_weight")
+  totalCost   Float? @map("total_cost")
+
+  isPublic   Boolean  @default(false) @map("is_public")
+  isTemplate Boolean  @default(false) @map("is_template")
+  tags       String[]
+
+  likesCount Int @default(0) @map("likes_count")
+  viewsCount Int @default(0) @map("views_count")
+
+  likes BuildLike[]
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("builds")
+}
+
+model BuildLike {
+  id      Int @id @default(autoincrement())
+  userId  Int @map("user_id")
+  buildId Int @map("build_id")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  build Build @relation(fields: [buildId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, buildId])
+  @@map("build_likes")
+}
+
+model BuildArtefact {
+  id         Int    @id @default(autoincrement())
+  buildId    Int    @map("build_id")
+  artefactId String @map("artefact_id")
+
+  build    Build    @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  artefact Artefact @relation(fields: [artefactId], references: [id], onDelete: Restrict)
+
+  slot Int // Позиция (например, 1–4)
+
+  @@unique([buildId, slot])
+  @@map("build_artefacts")
+}
