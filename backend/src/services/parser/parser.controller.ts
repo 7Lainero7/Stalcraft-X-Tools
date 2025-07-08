@@ -1,7 +1,9 @@
-import { parseArmor } from './item-parser.service';
+import { parseArmor, parseArtefacts, parseContainers } from './item-parser.service';
 
 export async function runParsers() {
-  console.log('🚀 Начало парсинга...');
+  console.log('Начинаем синхронизацию предметов...');
   await parseArmor();
-  console.log('🎉 Готово!');
+  await parseArtefacts();
+  await parseContainers();
+  console.log('Все категории успешно синхронизированы!');
 }

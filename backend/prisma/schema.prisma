@@ -66,13 +66,6 @@ model ArmorStat {
   value   Float
 }
 
-model ArmorStatLabel {
-  id      Int    @id @default(autoincrement())
-  statKey String
-  lang    String
-  label   String
-}
-
 model Artefact {
   id            String  @id
   category      String
@@ -101,19 +94,13 @@ model ArtefactName {
 }
 
 model ArtefactEffect {
-  id         Int      @id @default(autoincrement())
-  artefact   Artefact @relation(fields: [artefactId], references: [id])
-  artefactId String
-  effectKey  String
-  minValue   Float
-  maxValue   Float
-}
-
-model ArtefactEffectLabel {
-  id        Int    @id @default(autoincrement())
-  effectKey String
-  lang      String
-  label     String
+  id           Int      @id @default(autoincrement())
+  artefact     Artefact @relation(fields: [artefactId], references: [id])
+  artefactId   String
+  effectKey    String
+  minValue     Float
+  maxValue     Float
+  isThreshold  Boolean  @default(false) // true, если появляется только при 5, 10, 15
 }
 
 model Container {
@@ -147,13 +134,6 @@ model ContainerStat {
   containerId String
   statKey     String
   value       Float
-}
-
-model ContainerStatLabel {
-  id      Int    @id @default(autoincrement())
-  statKey String
-  lang    String
-  label   String
 }
 
 model Build {
