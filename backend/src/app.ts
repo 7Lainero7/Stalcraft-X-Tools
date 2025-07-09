@@ -1,7 +1,7 @@
 import { scheduleDailySync } from './jobs/daily-sync.job';
+import userRouter from './routes/user.route';
 import express from 'express';
 import cors from 'cors';
-import userRouter from './routes/user.route';
 
 
 scheduleDailySync();
