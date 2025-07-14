@@ -1,10 +1,13 @@
 import { Request, Response } from 'express';
+import { registerSchema, loginSchema, updateSchema } from '../validators/auth.schema';
+import { signToken } from '../utils/jwt';
 import bcrypt from 'bcrypt';
 import prisma from '../services/database/database.service';
-import { signToken } from '../utils/jwt';
 
 export async function register(req: Request, res: Response) {
-  const { email, username, password } = req.body;
+  const parsed = registerSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.format());
+  const { email, username, password } = parsed.data;
   const hashed = await bcrypt.hash(password, 10);
 
   const user = await prisma.user.create({
@@ -20,7 +23,9 @@ export async function register(req: Request, res: Response) {
 }
 
 export async function login(req: Request, res: Response) {
-  const { email, password } = req.body;
+  const parsed = loginSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.format());
+  const { email, password } = parsed.data;
 
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) return res.status(401).json({ message: 'Неверные данные' });
@@ -38,8 +43,10 @@ export async function getMe(req: Request, res: Response) {
 }
 
 export async function updateMe(req: Request, res: Response) {
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json(parsed.error.format());
   const user = (req as any).user;
-  const { username, password } = req.body;
+  const { username, password } = parsed.data;
 
   const data: any = {};
   if (username) data.username = username;
