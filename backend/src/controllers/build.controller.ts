@@ -1,5 +1,12 @@
 import { Request, Response } from 'express';
-import { getBuildList } from '../services/build.service';
+import {
+  getBuildList,
+  getBuildById,
+  createBuild,
+  updateBuild,
+  deleteBuild,
+} from '../services/build.service';
+import { buildCreateSchema, buildUpdateSchema } from '../validators/build.schema';
 
 interface BuildFilters {
   userId?: number;
@@ -28,4 +35,42 @@ export async function getBuilds(req: Request, res: Response): Promise<void> {
 
   const builds = await getBuildList(filters);
   res.json(builds);
+}
+
+export async function getBuild(req: Request, res: Response): Promise<void> {
+  const lang = typeof req.query.lang === 'string' ? req.query.lang : 'ru';
+  const build = await getBuildById(req.params.id, lang);
+  if (!build) {
+    res.status(404).json({ message: 'Билд не найден' });
+    return;
+  }
+  res.json(build);
+}
+
+export async function createBuildHandler(req: Request, res: Response): Promise<void> {
+  const parsed = buildCreateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json(parsed.error.format());
+    return;
+  }
+
+  const user = (req as any).user;
+  const build = await createBuild({ ...parsed.data, userId: user.id });
+  res.status(201).json(build);
+}
+
+export async function updateBuildHandler(req: Request, res: Response): Promise<void> {
+  const parsed = buildUpdateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json(parsed.error.format());
+    return;
+  }
+
+  const build = await updateBuild(req.params.id, parsed.data);
+  res.json(build);
+}
+
+export async function deleteBuildHandler(req: Request, res: Response): Promise<void> {
+  await deleteBuild(req.params.id);
+  res.status(204).send();
 }
