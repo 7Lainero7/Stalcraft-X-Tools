@@ -18,6 +18,7 @@ model User {
   builds        Build[]
   buildLikes    BuildLike[]
   buildFavorites BuildFavorite[]
+  refreshTokens RefreshToken[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -215,4 +216,15 @@ model BuildFavorite {
 
   @@unique([userId, buildId])
   @@map("build_favorites")
+}
+
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@map("refresh_tokens")
 }

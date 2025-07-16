@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { registerSchema, loginSchema, updateSchema } from '../validators/auth.schema';
-import { signToken } from '../utils/jwt';
+import { signToken, signAccessToken, signRefreshToken } from '../utils/jwt';
+import { createRefreshToken, findRefreshToken, deleteRefreshToken } from '../services/refreshToken.service';
 import bcrypt from 'bcrypt';
 import prisma from '../services/database/database.service';
 
@@ -22,9 +23,15 @@ export async function register(req: Request, res: Response): Promise<void> {
     }
   });
 
-  const token = signToken({ id: user.id });
+   const accessToken = signAccessToken({ id: user.id });
+  const refreshToken = signRefreshToken({ id: user.id });
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 дней
+
+  await createRefreshToken(user.id, refreshToken, expiresAt);
+
   res.json({
-    token,
+    accessToken,
+    refreshToken,
     user: {
       id: user.id,
       email: user.email,
@@ -55,9 +62,15 @@ export async function login(req: Request, res: Response): Promise<void> {
     return;
   }
 
-  const token = signToken({ id: user.id });
+  const accessToken = signAccessToken({ id: user.id });
+  const refreshToken = signRefreshToken({ id: user.id });
+  const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 дней
+
+  await createRefreshToken(user.id, refreshToken, expiresAt);
+
   res.json({
-    token,
+    accessToken,
+    refreshToken,
     user: {
       id: user.id,
       email: user.email,
