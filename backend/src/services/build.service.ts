@@ -241,3 +241,91 @@ export async function getPopularBuilds(lang = 'ru', limit = 10) {
     take: limit,
   });
 }
+
+export async function toggleLike(buildId: number, userId: number) {
+  const existing = await prisma.buildLike.findUnique({
+    where: {
+      userId_buildId: { userId, buildId },
+    },
+  });
+
+  if (existing) {
+    await prisma.$transaction([
+      prisma.buildLike.delete({
+        where: { userId_buildId: { userId, buildId } },
+      }),
+      prisma.build.update({
+        where: { id: buildId },
+        data: { likesCount: { decrement: 1 } },
+      }),
+    ]);
+    return { liked: false };
+  } else {
+    await prisma.$transaction([
+      prisma.buildLike.create({
+        data: { userId, buildId },
+      }),
+      prisma.build.update({
+        where: { id: buildId },
+        data: { likesCount: { increment: 1 } },
+      }),
+    ]);
+    return { liked: true };
+  }
+}
+
+export async function toggleFavorite(buildId: number, userId: number) {
+  const existing = await prisma.buildFavorite.findUnique({
+    where: {
+      userId_buildId: { userId, buildId },
+    },
+  });
+
+  if (existing) {
+    await prisma.buildFavorite.delete({
+      where: { userId_buildId: { userId, buildId } },
+    });
+    return { favorited: false };
+  } else {
+    await prisma.buildFavorite.create({
+      data: { userId, buildId },
+    });
+    return { favorited: true };
+  }
+}
+
+export async function getFavoriteBuilds(userId: number, lang = 'ru') {
+  const favorites = await prisma.buildFavorite.findMany({
+    where: { userId },
+    include: {
+      build: {
+        include: {
+          user: { select: { id: true, username: true } },
+          armor: {
+            include: {
+              names: { where: { lang }, select: { name: true } },
+            },
+          },
+          container: {
+            include: {
+              names: { where: { lang }, select: { name: true } },
+            },
+          },
+          artefacts: {
+            include: {
+              artefact: {
+                include: {
+                  names: { where: { lang }, select: { name: true } },
+                  effects: true,
+                },
+              },
+            },
+          },
+          likes: true,
+        },
+      },
+    },
+  });
+
+  return favorites.map((f: { build: any }) => f.build);
+}

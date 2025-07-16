@@ -5,12 +5,13 @@ import {
   createBuildHandler,
   updateBuildHandler,
   deleteBuildHandler,
-} from '../controllers/build.controller';
-import { authMiddleware } from '../middlewares/auth.middleware';
-import {
+  likeBuildHandler,
+  favoriteBuildHandler,
+  getFavoritesHandler,
   cloneBuildHandler,
   getPopularBuildsHandler,
 } from '../controllers/build.controller';
+import { authMiddleware } from '../middlewares/auth.middleware';
 
 const router = Router();
 
@@ -21,6 +22,10 @@ router.patch('/:id', authMiddleware, updateBuildHandler);
 router.delete('/:id', authMiddleware, deleteBuildHandler);
 router.post('/:id/clone', authMiddleware, cloneBuildHandler);
 router.get('/popular', getPopularBuildsHandler);
+router.post('/:id/like', authMiddleware, likeBuildHandler);
+router.post('/:id/favorite', authMiddleware, favoriteBuildHandler);
+router.get('/favorites', authMiddleware, getFavoritesHandler);
+
 
 
 export default router;

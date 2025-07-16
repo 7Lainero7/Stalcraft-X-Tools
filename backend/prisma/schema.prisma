@@ -15,8 +15,9 @@ model User {
   role         UserRole @default(USER)
   isActive     Boolean  @default(true) @map("is_active")
 
-  builds     Build[]
-  buildLikes BuildLike[]
+  builds        Build[]
+  buildLikes    BuildLike[]
+  buildFavorites BuildFavorite[]
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -152,7 +153,8 @@ model Build {
   containerId String?    @map("container_id")
   container   Container? @relation("ContainerInBuild", fields: [containerId], references: [id])
 
-  artefacts BuildArtefact[] // Many-to-many
+  artefacts BuildArtefact[]
+  favorites BuildFavorite[]
 
   totalStats  Json?  @map("total_stats")
   totalWeight Float? @map("total_weight")
@@ -199,4 +201,18 @@ model BuildArtefact {
 
   @@unique([buildId, slot])
   @@map("build_artefacts")
+}
+
+model BuildFavorite {
+  id      Int @id @default(autoincrement())
+  userId  Int @map("user_id")
+  buildId Int @map("build_id")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  build Build @relation(fields: [buildId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, buildId])
+  @@map("build_favorites")
 }

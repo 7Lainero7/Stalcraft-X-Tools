@@ -7,6 +7,9 @@ import {
   deleteBuild,
   cloneBuild,
   getPopularBuilds,
+  toggleLike,
+  toggleFavorite,
+  getFavoriteBuilds,
 } from '../services/build.service';
 import { buildCreateSchema, buildUpdateSchema } from '../validators/build.schema';
 
@@ -147,4 +150,50 @@ export async function getPopularBuildsHandler(req: Request, res: Response): Prom
   const limit = req.query.limit ? Number(req.query.limit) : 10;
   const builds = await getPopularBuilds(lang, limit);
   res.json(builds);
+}
+
+export async function likeBuildHandler(req: Request, res: Response): Promise<void> {
+  const user = (req as any).user;
+  const buildId = Number(req.params.id);
+  
+  if (isNaN(buildId)) {
+    res.status(400).json({ message: 'Некорректный ID билда' });
+    return;
+  }
+
+  try {
+    const result = await toggleLike(buildId, user.id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Ошибка при обновлении лайка', error });
+  }
+}
+
+export async function favoriteBuildHandler(req: Request, res: Response): Promise<void> {
+  const user = (req as any).user;
+  const buildId = Number(req.params.id);
+  
+  if (isNaN(buildId)) {
+    res.status(400).json({ message: 'Некорректный ID билда' });
+    return;
+  }
+
+  try {
+    const result = await toggleFavorite(buildId, user.id);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: 'Ошибка при обновлении избранного', error });
+  }
+}
+
+export async function getFavoritesHandler(req: Request, res: Response): Promise<void> {
+  const user = (req as any).user;
+  const lang = typeof req.query.lang === 'string' ? req.query.lang : 'ru';
+  
+  try {
+    const builds = await getFavoriteBuilds(user.id, lang);
+    res.json(builds);
+  } catch (error) {
+    res.status(500).json({ message: 'Ошибка при получении избранных билдов', error });
+  }
 }
