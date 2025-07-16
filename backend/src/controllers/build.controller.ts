@@ -5,9 +5,10 @@ import {
   createBuild,
   updateBuild,
   deleteBuild,
+  cloneBuild,
+  getPopularBuilds,
 } from '../services/build.service';
 import { buildCreateSchema, buildUpdateSchema } from '../validators/build.schema';
-import { cloneBuild, getPopularBuilds } from '../services/build.service';
 
 interface BuildFilters {
   userId?: number;
@@ -40,7 +41,14 @@ export async function getBuilds(req: Request, res: Response): Promise<void> {
 
 export async function getBuild(req: Request, res: Response): Promise<void> {
   const lang = typeof req.query.lang === 'string' ? req.query.lang : 'ru';
-  const build = await getBuildById(req.params.id, lang);
+  const buildId = Number(req.params.id);
+  
+  if (isNaN(buildId)) {
+    res.status(400).json({ message: 'Некорректный ID билда' });
+    return;
+  }
+
+  const build = await getBuildById(buildId, lang);
   if (!build) {
     res.status(404).json({ message: 'Билд не найден' });
     return;
@@ -56,8 +64,22 @@ export async function createBuildHandler(req: Request, res: Response): Promise<v
   }
 
   const user = (req as any).user;
-  const build = await createBuild({ ...parsed.data, userId: user.id });
-  res.status(201).json(build);
+
+  try {
+    const build = await createBuild({
+      userId: user.id,
+      armorId: parsed.data.armorId, // уже string
+      containerId: parsed.data.containerId, // уже string
+      artefactIds: parsed.data.artefactIds, // уже string[]
+      isPublic: parsed.data.isPublic,
+      isTemplate: parsed.data.isTemplate,
+      tags: parsed.data.tags,
+    });
+
+    res.status(201).json(build);
+  } catch (error) {
+    res.status(400).json({ message: 'Ошибка при создании билда', error });
+  }
 }
 
 export async function updateBuildHandler(req: Request, res: Response): Promise<void> {
@@ -67,21 +89,55 @@ export async function updateBuildHandler(req: Request, res: Response): Promise<v
     return;
   }
 
-  const build = await updateBuild(req.params.id, parsed.data);
-  res.json(build);
+  const buildId = Number(req.params.id);
+  if (isNaN(buildId)) {
+    res.status(400).json({ message: 'Некорректный ID билда' });
+    return;
+  }
+
+  try {
+    const updateData = {
+      ...parsed.data,
+      armorId: parsed.data.armorId,
+      containerId: parsed.data.containerId,
+      artefactIds: parsed.data.artefactIds,
+    };
+
+    const build = await updateBuild(buildId, updateData);
+    res.json(build);
+  } catch (error) {
+    res.status(400).json({ message: 'Ошибка при обновлении билда', error });
+  }
 }
 
 export async function deleteBuildHandler(req: Request, res: Response): Promise<void> {
-  await deleteBuild(req.params.id);
-  res.status(204).send();
+  const buildId = Number(req.params.id);
+  if (isNaN(buildId)) {
+    res.status(400).json({ message: 'Некорректный ID билда' });
+    return;
+  }
+
+  try {
+    await deleteBuild(buildId);
+    res.status(204).send();
+  } catch (error) {
+    res.status(400).json({ message: 'Ошибка при удалении билда', error });
+  }
 }
 
 export async function cloneBuildHandler(req: Request, res: Response): Promise<void> {
   const user = (req as any).user;
+  const buildId = Number(req.params.id);
+  
+  if (isNaN(buildId)) {
+    res.status(400).json({ message: 'Некорректный ID билда' });
+    return;
+  }
+
   try {
-    const cloned = await cloneBuild(req.params.id, user.id);
+    const cloned = await cloneBuild(buildId, user.id);
     res.status(201).json(cloned);
-  } catch {
+  } catch (error) {
     res.status(404).json({ message: 'Билд не найден' });
   }
 }

@@ -33,33 +33,22 @@ export async function getBuildList(filters: BuildFilters) {
       ...(tags && { tags: { has: tags } }),
     },
     include: {
-      user: {
-        select: { id: true, username: true, role: true },
-      },
+      user: { select: { id: true, username: true, role: true } },
       armor: {
         include: {
-          names: {
-            where: { lang },
-            select: { name: true },
-          },
+          names: { where: { lang }, select: { name: true } },
         },
       },
       container: {
         include: {
-          names: {
-            where: { lang },
-            select: { name: true },
-          },
+          names: { where: { lang }, select: { name: true } },
         },
       },
       artefacts: {
         include: {
           artefact: {
             include: {
-              names: {
-                where: { lang },
-                select: { name: true },
-              },
+              names: { where: { lang }, select: { name: true } },
               effects: true,
             },
           },
@@ -73,7 +62,7 @@ export async function getBuildList(filters: BuildFilters) {
   });
 }
 
-export async function getBuildById(id: string, lang = 'ru') {
+export async function getBuildById(id: number, lang = 'ru') {
   return prisma.build.findUnique({
     where: { id },
     include: {
@@ -103,7 +92,7 @@ export async function getBuildById(id: string, lang = 'ru') {
   });
 }
 
-export async function createBuild(data: {
+interface CreateBuildData {
   userId: number;
   armorId: string;
   containerId: string;
@@ -111,34 +100,54 @@ export async function createBuild(data: {
   isPublic?: boolean;
   isTemplate?: boolean;
   tags?: string[];
-}) {
+  name?: string;
+  description?: string;
+}
+
+export async function createBuild(data: CreateBuildData) {
   return prisma.build.create({
     data: {
       userId: data.userId,
       armorId: data.armorId,
       containerId: data.containerId,
+      name: data.name || 'Новый билд',
+      description: data.description || null,
+      buildData: '{}',
       isPublic: data.isPublic ?? false,
       isTemplate: data.isTemplate ?? false,
       tags: data.tags ?? [],
       artefacts: {
-        create: data.artefactIds.map(id => ({ artefactId: id })),
+        create: data.artefactIds.map((id, index) => ({
+          slot: index,
+          artefact: { connect: { id } },
+        })),
       },
+    },
+    include: {
+      artefacts: true,
     },
   });
 }
 
-export async function updateBuild(id: string, data: Partial<{
-  armorId: string;
-  containerId: string;
-  artefactIds: string[];
-  isPublic: boolean;
-  isTemplate: boolean;
-  tags: string[];
-}>) {
+interface UpdateBuildData {
+  armorId?: string;
+  containerId?: string;
+  artefactIds?: string[];
+  isPublic?: boolean;
+  isTemplate?: boolean;
+  tags?: string[];
+  name?: string;
+  description?: string;
+}
+
+export async function updateBuild(id: number, data: UpdateBuildData) {
   const artefactUpdate = data.artefactIds
     ? {
         deleteMany: {},
-        create: data.artefactIds.map(id => ({ artefactId: id })),
+        create: data.artefactIds.map((id, index) => ({
+          slot: index,
+          artefact: { connect: { id } },
+        })),
       }
     : undefined;
 
@@ -150,16 +159,21 @@ export async function updateBuild(id: string, data: Partial<{
       isPublic: data.isPublic,
       isTemplate: data.isTemplate,
       tags: data.tags,
+      name: data.name,
+      description: data.description,
       ...(artefactUpdate && { artefacts: artefactUpdate }),
+    },
+    include: {
+      artefacts: true,
     },
   });
 }
 
-export async function deleteBuild(id: string) {
+export async function deleteBuild(id: number) {
   return prisma.build.delete({ where: { id } });
 }
 
-export async function cloneBuild(buildId: string, userId: number) {
+export async function cloneBuild(buildId: number, userId: number) {
   const original = await prisma.build.findUnique({
     where: { id: buildId },
     include: {
@@ -174,12 +188,21 @@ export async function cloneBuild(buildId: string, userId: number) {
       userId,
       armorId: original.armorId,
       containerId: original.containerId,
+      name: `Клон билда ${original.name}`,
+      description: original.description,
+      buildData: original.buildData ?? '{}',
       isPublic: false,
       isTemplate: false,
       tags: original.tags,
       artefacts: {
-        create: original.artefacts.map(a => ({ artefactId: a.artefactId })),
+        create: original.artefacts.map((a, index) => ({
+          slot: index,
+          artefact: { connect: { id: a.artefactId } },
+        })),
       },
+    },
+    include: {
+      artefacts: true,
     },
   });
 }
@@ -212,7 +235,7 @@ export async function getPopularBuilds(lang = 'ru', limit = 10) {
       likes: true,
     },
     orderBy: [
-      { views: 'desc' },
+      { viewsCount: 'desc' },
       { likesCount: 'desc' },
     ],
     take: limit,
