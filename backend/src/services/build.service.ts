@@ -158,3 +158,63 @@ export async function updateBuild(id: string, data: Partial<{
 export async function deleteBuild(id: string) {
   return prisma.build.delete({ where: { id } });
 }
+
+export async function cloneBuild(buildId: string, userId: number) {
+  const original = await prisma.build.findUnique({
+    where: { id: buildId },
+    include: {
+      artefacts: true,
+    },
+  });
+
+  if (!original) throw new Error('Билд не найден');
+
+  return prisma.build.create({
+    data: {
+      userId,
+      armorId: original.armorId,
+      containerId: original.containerId,
+      isPublic: false,
+      isTemplate: false,
+      tags: original.tags,
+      artefacts: {
+        create: original.artefacts.map(a => ({ artefactId: a.artefactId })),
+      },
+    },
+  });
+}
+
+export async function getPopularBuilds(lang = 'ru', limit = 10) {
+  return prisma.build.findMany({
+    where: { isPublic: true },
+    include: {
+      user: { select: { id: true, username: true } },
+      armor: {
+        include: {
+          names: { where: { lang }, select: { name: true } },
+        },
+      },
+      container: {
+        include: {
+          names: { where: { lang }, select: { name: true } },
+        },
+      },
+      artefacts: {
+        include: {
+          artefact: {
+            include: {
+              names: { where: { lang }, select: { name: true } },
+              effects: true,
+            },
+          },
+        },
+      },
+      likes: true,
+    },
+    orderBy: [
+      { views: 'desc' },
+      { likesCount: 'desc' },
+    ],
+    take: limit,
+  });
+}

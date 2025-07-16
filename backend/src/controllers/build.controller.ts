@@ -7,6 +7,7 @@ import {
   deleteBuild,
 } from '../services/build.service';
 import { buildCreateSchema, buildUpdateSchema } from '../validators/build.schema';
+import { cloneBuild, getPopularBuilds } from '../services/build.service';
 
 interface BuildFilters {
   userId?: number;
@@ -73,4 +74,21 @@ export async function updateBuildHandler(req: Request, res: Response): Promise<v
 export async function deleteBuildHandler(req: Request, res: Response): Promise<void> {
   await deleteBuild(req.params.id);
   res.status(204).send();
+}
+
+export async function cloneBuildHandler(req: Request, res: Response): Promise<void> {
+  const user = (req as any).user;
+  try {
+    const cloned = await cloneBuild(req.params.id, user.id);
+    res.status(201).json(cloned);
+  } catch {
+    res.status(404).json({ message: 'Билд не найден' });
+  }
+}
+
+export async function getPopularBuildsHandler(req: Request, res: Response): Promise<void> {
+  const lang = typeof req.query.lang === 'string' ? req.query.lang : 'ru';
+  const limit = req.query.limit ? Number(req.query.limit) : 10;
+  const builds = await getPopularBuilds(lang, limit);
+  res.json(builds);
 }
