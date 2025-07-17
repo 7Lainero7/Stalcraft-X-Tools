@@ -10,6 +10,8 @@ import {
   getFavoritesHandler,
   cloneBuildHandler,
   getPopularBuildsHandler,
+  getPopularTagsHandler,
+  getBuildsByTagHandler
 } from '../controllers/build.controller';
 import { authMiddleware } from '../middlewares/auth.middleware';
 
@@ -25,6 +27,8 @@ router.get('/popular', getPopularBuildsHandler);
 router.post('/:id/like', authMiddleware, likeBuildHandler);
 router.post('/:id/favorite', authMiddleware, favoriteBuildHandler);
 router.get('/favorites', authMiddleware, getFavoritesHandler);
+router.get('/tags/popular', getPopularTagsHandler);
+router.get('/tags/:tag', getBuildsByTagHandler);
 
 
 

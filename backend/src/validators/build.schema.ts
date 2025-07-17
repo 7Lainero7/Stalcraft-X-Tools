@@ -6,7 +6,7 @@ export const buildCreateSchema = z.object({
   artefactIds: z.array(z.string()),
   isPublic: z.boolean().optional(),
   isTemplate: z.boolean().optional(),
-  tags: z.array(z.string()).optional(),
+  tags: z.array(z.string().min(1).max(20)).optional(),
 });
 
 export const buildUpdateSchema = buildCreateSchema.partial();

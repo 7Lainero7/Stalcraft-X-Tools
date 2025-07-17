@@ -30,7 +30,15 @@ export async function getBuildList(filters: BuildFilters) {
       ...(userId && { userId }),
       ...(isPublic !== undefined && { isPublic }),
       ...(isTemplate !== undefined && { isTemplate }),
-      ...(tags && { tags: { has: tags } }),
+      ...(tags && { 
+        buildTags: {
+          some: {
+            tag: {
+              name: tags
+            }
+          }
+        }
+      }),
     },
     include: {
       user: { select: { id: true, username: true, role: true } },
@@ -53,6 +61,11 @@ export async function getBuildList(filters: BuildFilters) {
             },
           },
         },
+      },
+      buildTags: {
+        include: {
+          tag: true
+        }
       },
       likes: true,
     },
@@ -87,6 +100,11 @@ export async function getBuildById(id: number, lang = 'ru') {
           },
         },
       },
+      buildTags: {
+        include: {
+          tag: true
+        }
+      },
       likes: true,
     },
   });
@@ -105,6 +123,8 @@ interface CreateBuildData {
 }
 
 export async function createBuild(data: CreateBuildData) {
+  const tags = data.tags?.length ? await findOrCreateTags(data.tags) : [];
+
   return prisma.build.create({
     data: {
       userId: data.userId,
@@ -115,16 +135,27 @@ export async function createBuild(data: CreateBuildData) {
       buildData: '{}',
       isPublic: data.isPublic ?? false,
       isTemplate: data.isTemplate ?? false,
-      tags: data.tags ?? [],
       artefacts: {
         create: data.artefactIds.map((id, index) => ({
           slot: index,
           artefact: { connect: { id } },
         })),
       },
+      buildTags: {
+        create: tags.map(tag => ({
+          tag: {
+            connect: { id: tag.id }
+          }
+        })),
+      },
     },
     include: {
       artefacts: true,
+      buildTags: {
+        include: {
+          tag: true
+        }
+      },
     },
   });
 }
@@ -141,6 +172,7 @@ interface UpdateBuildData {
 }
 
 export async function updateBuild(id: number, data: UpdateBuildData) {
+  const tags = data.tags?.length ? await findOrCreateTags(data.tags) : [];
   const artefactUpdate = data.artefactIds
     ? {
         deleteMany: {},
@@ -158,13 +190,25 @@ export async function updateBuild(id: number, data: UpdateBuildData) {
       containerId: data.containerId,
       isPublic: data.isPublic,
       isTemplate: data.isTemplate,
-      tags: data.tags,
+      buildTags: {
+        deleteMany: {},
+        create: tags.map(tag => ({
+          tag: {
+            connect: { id: tag.id }
+          }
+        })),
+      },
       name: data.name,
       description: data.description,
       ...(artefactUpdate && { artefacts: artefactUpdate }),
     },
     include: {
       artefacts: true,
+      buildTags: {
+        include: {
+          tag: true
+        }
+      },
     },
   });
 }
@@ -178,6 +222,11 @@ export async function cloneBuild(buildId: number, userId: number) {
     where: { id: buildId },
     include: {
       artefacts: true,
+      buildTags: {
+        include: {
+          tag: true
+        }
+      },
     },
   });
 
@@ -193,16 +242,27 @@ export async function cloneBuild(buildId: number, userId: number) {
       buildData: original.buildData ?? '{}',
       isPublic: false,
       isTemplate: false,
-      tags: original.tags,
       artefacts: {
         create: original.artefacts.map((a, index) => ({
           slot: index,
           artefact: { connect: { id: a.artefactId } },
         })),
       },
+      buildTags: {
+        create: original.buildTags.map(tag => ({
+          tag: {
+            connect: { id: tag.tag.id }
+          }
+        })),
+      },
     },
     include: {
       artefacts: true,
+      buildTags: {
+        include: {
+          tag: true
+        }
+      },
     },
   });
 }
@@ -328,4 +388,60 @@ export async function getFavoriteBuilds(userId: number, lang = 'ru') {
   });
 
   return favorites.map((f: { build: any }) => f.build);
+}
+
+export async function findOrCreateTags(tagNames: string[]) {
+  return Promise.all(
+    tagNames.map(name =>
+      prisma.tag.upsert({
+        where: { name },
+        create: { name },
+        update: {},
+      })
+    )
+  );
+}
+
+export async function getPopularTags(limit = 10) {
+  return prisma.tag.findMany({
+    take: limit,
+    orderBy: {
+      buildTags: {
+        _count: 'desc',
+      },
+    },
+    include: {
+      _count: {
+        select: { buildTags: true },
+      },
+    },
+  });
+}
+
+export async function getBuildsByTag(tagName: string, filters: Omit<BuildFilters, 'tags'>) {
+  return prisma.build.findMany({
+    where: {
+      buildTags: {
+        some: { 
+          tag: { 
+            name: tagName 
+          } 
+        }
+      },
+      ...(filters.userId && { userId: filters.userId }),
+      ...(filters.isPublic !== undefined && { isPublic: filters.isPublic }),
+      ...(filters.isTemplate !== undefined && { isTemplate: filters.isTemplate }),
+    },
+    include: {
+      user: { select: { id: true, username: true, role: true } },
+      buildTags: {
+        include: {
+          tag: true
+        }
+      },
+    },
+    take: filters.limit,
+    skip: filters.offset,
+    orderBy: filters.sort ? { [filters.sort]: filters.order } : { createdAt: 'desc' },
+  });
 }

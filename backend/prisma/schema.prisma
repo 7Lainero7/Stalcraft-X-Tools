@@ -47,6 +47,9 @@ model Armor {
   compatibleContainers String
   iconUrl              String
 
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   names  ArmorName[]
   stats  ArmorStat[]
   builds Build[]     @relation("ArmorInBuild")
@@ -82,6 +85,9 @@ model Artefact {
   description   String
   iconUrl       String
 
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
   names          ArtefactName[]
   effects        ArtefactEffect[]
   buildArtefacts BuildArtefact[]
@@ -116,6 +122,9 @@ model Container {
   capacity       Float?
   iconUrl        String
   description    String
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   names  ContainerName[]
   stats  ContainerStat[]
@@ -156,6 +165,8 @@ model Build {
 
   artefacts BuildArtefact[]
   favorites BuildFavorite[]
+  buildTags BuildTag[]
+  tags      Tag[]     @relation("BuildTags")
 
   totalStats  Json?  @map("total_stats")
   totalWeight Float? @map("total_weight")
@@ -163,8 +174,6 @@ model Build {
 
   isPublic   Boolean  @default(false) @map("is_public")
   isTemplate Boolean  @default(false) @map("is_template")
-  tags       String[]
-
   likesCount Int @default(0) @map("likes_count")
   viewsCount Int @default(0) @map("views_count")
 
@@ -198,10 +207,36 @@ model BuildArtefact {
   build    Build    @relation(fields: [buildId], references: [id], onDelete: Cascade)
   artefact Artefact @relation(fields: [artefactId], references: [id], onDelete: Restrict)
 
-  slot Int // Позиция (например, 1–4)
+  slot Int
 
   @@unique([buildId, slot])
   @@map("build_artefacts")
+}
+
+model Tag {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  buildTags BuildTag[]
+  builds    Build[]   @relation("BuildTags")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("tags")
+}
+
+model BuildTag {
+  id      Int     @id @default(autoincrement())
+  buildId Int     @map("build_id")
+  tagId   Int     @map("tag_id")
+
+  build Build @relation(fields: [buildId], references: [id], onDelete: Cascade)
+  tag   Tag   @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([buildId, tagId])
+  @@map("build_tags")
 }
 
 model BuildFavorite {

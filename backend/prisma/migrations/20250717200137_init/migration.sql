@@ -30,6 +30,8 @@ CREATE TABLE "Armor" (
     "compatibleBackpacks" TEXT NOT NULL,
     "compatibleContainers" TEXT NOT NULL,
     "iconUrl" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Armor_pkey" PRIMARY KEY ("id")
 );
@@ -55,16 +57,6 @@ CREATE TABLE "ArmorStat" (
 );
 
 -- CreateTable
-CREATE TABLE "ArmorStatLabel" (
-    "id" SERIAL NOT NULL,
-    "statKey" TEXT NOT NULL,
-    "lang" TEXT NOT NULL,
-    "label" TEXT NOT NULL,
-
-    CONSTRAINT "ArmorStatLabel_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "Artefact" (
     "id" TEXT NOT NULL,
     "category" TEXT NOT NULL,
@@ -78,6 +70,8 @@ CREATE TABLE "Artefact" (
     "freshness" TEXT,
     "description" TEXT NOT NULL,
     "iconUrl" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Artefact_pkey" PRIMARY KEY ("id")
 );
@@ -99,18 +93,9 @@ CREATE TABLE "ArtefactEffect" (
     "effectKey" TEXT NOT NULL,
     "minValue" DOUBLE PRECISION NOT NULL,
     "maxValue" DOUBLE PRECISION NOT NULL,
+    "isThreshold" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "ArtefactEffect_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "ArtefactEffectLabel" (
-    "id" SERIAL NOT NULL,
-    "effectKey" TEXT NOT NULL,
-    "lang" TEXT NOT NULL,
-    "label" TEXT NOT NULL,
-
-    CONSTRAINT "ArtefactEffectLabel_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -125,6 +110,8 @@ CREATE TABLE "Container" (
     "capacity" DOUBLE PRECISION,
     "iconUrl" TEXT NOT NULL,
     "description" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Container_pkey" PRIMARY KEY ("id")
 );
@@ -150,16 +137,6 @@ CREATE TABLE "ContainerStat" (
 );
 
 -- CreateTable
-CREATE TABLE "ContainerStatLabel" (
-    "id" SERIAL NOT NULL,
-    "statKey" TEXT NOT NULL,
-    "lang" TEXT NOT NULL,
-    "label" TEXT NOT NULL,
-
-    CONSTRAINT "ContainerStatLabel_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "builds" (
     "id" SERIAL NOT NULL,
     "user_id" INTEGER NOT NULL,
@@ -173,7 +150,6 @@ CREATE TABLE "builds" (
     "total_cost" DOUBLE PRECISION,
     "is_public" BOOLEAN NOT NULL DEFAULT false,
     "is_template" BOOLEAN NOT NULL DEFAULT false,
-    "tags" TEXT[],
     "likes_count" INTEGER NOT NULL DEFAULT 0,
     "views_count" INTEGER NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -202,6 +178,55 @@ CREATE TABLE "build_artefacts" (
     CONSTRAINT "build_artefacts_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "tags" (
+    "id" SERIAL NOT NULL,
+    "name" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "tags_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "build_tags" (
+    "id" SERIAL NOT NULL,
+    "build_id" INTEGER NOT NULL,
+    "tag_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "build_tags_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "build_favorites" (
+    "id" SERIAL NOT NULL,
+    "user_id" INTEGER NOT NULL,
+    "build_id" INTEGER NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "build_favorites_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "refresh_tokens" (
+    "id" SERIAL NOT NULL,
+    "token" TEXT NOT NULL,
+    "userId" INTEGER NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "refresh_tokens_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "_BuildTags" (
+    "A" INTEGER NOT NULL,
+    "B" INTEGER NOT NULL,
+
+    CONSTRAINT "_BuildTags_AB_pkey" PRIMARY KEY ("A","B")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
 
@@ -213,6 +238,21 @@ CREATE UNIQUE INDEX "build_likes_user_id_build_id_key" ON "build_likes"("user_id
 
 -- CreateIndex
 CREATE UNIQUE INDEX "build_artefacts_build_id_slot_key" ON "build_artefacts"("build_id", "slot");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "tags_name_key" ON "tags"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "build_tags_build_id_tag_id_key" ON "build_tags"("build_id", "tag_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "build_favorites_user_id_build_id_key" ON "build_favorites"("user_id", "build_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "refresh_tokens_token_key" ON "refresh_tokens"("token");
+
+-- CreateIndex
+CREATE INDEX "_BuildTags_B_index" ON "_BuildTags"("B");
 
 -- AddForeignKey
 ALTER TABLE "ArmorName" ADD CONSTRAINT "ArmorName_armorId_fkey" FOREIGN KEY ("armorId") REFERENCES "Armor"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -252,3 +292,24 @@ ALTER TABLE "build_artefacts" ADD CONSTRAINT "build_artefacts_build_id_fkey" FOR
 
 -- AddForeignKey
 ALTER TABLE "build_artefacts" ADD CONSTRAINT "build_artefacts_artefact_id_fkey" FOREIGN KEY ("artefact_id") REFERENCES "Artefact"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "build_tags" ADD CONSTRAINT "build_tags_build_id_fkey" FOREIGN KEY ("build_id") REFERENCES "builds"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "build_tags" ADD CONSTRAINT "build_tags_tag_id_fkey" FOREIGN KEY ("tag_id") REFERENCES "tags"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "build_favorites" ADD CONSTRAINT "build_favorites_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "build_favorites" ADD CONSTRAINT "build_favorites_build_id_fkey" FOREIGN KEY ("build_id") REFERENCES "builds"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "refresh_tokens" ADD CONSTRAINT "refresh_tokens_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_BuildTags" ADD CONSTRAINT "_BuildTags_A_fkey" FOREIGN KEY ("A") REFERENCES "builds"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_BuildTags" ADD CONSTRAINT "_BuildTags_B_fkey" FOREIGN KEY ("B") REFERENCES "tags"("id") ON DELETE CASCADE ON UPDATE CASCADE;

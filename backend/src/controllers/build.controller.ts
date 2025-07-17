@@ -10,6 +10,8 @@ import {
   toggleLike,
   toggleFavorite,
   getFavoriteBuilds,
+  getPopularTags,
+  getBuildsByTag
 } from '../services/build.service';
 import { buildCreateSchema, buildUpdateSchema } from '../validators/build.schema';
 
@@ -39,7 +41,13 @@ export async function getBuilds(req: Request, res: Response): Promise<void> {
   };
 
   const builds = await getBuildList(filters);
-  res.json(builds);
+  
+  const formattedBuilds = builds.map(build => ({
+    ...build,
+    tags: build.buildTags.map(bt => bt.tag.name)
+  }));
+  
+  res.json(formattedBuilds);
 }
 
 export async function getBuild(req: Request, res: Response): Promise<void> {
@@ -196,4 +204,20 @@ export async function getFavoritesHandler(req: Request, res: Response): Promise<
   } catch (error) {
     res.status(500).json({ message: 'Ошибка при получении избранных билдов', error });
   }
+}
+
+export async function getPopularTagsHandler(req: Request, res: Response) {
+  const limit = req.query.limit ? Number(req.query.limit) : 10;
+  const tags = await getPopularTags(limit);
+  res.json(tags);
+}
+
+export async function getBuildsByTagHandler(req: Request, res: Response) {
+  const tagName = req.params.tag;
+  const filters = {
+    // ... аналогично getBuilds
+  };
+  
+  const builds = await getBuildsByTag(tagName, filters);
+  res.json(builds);
 }
