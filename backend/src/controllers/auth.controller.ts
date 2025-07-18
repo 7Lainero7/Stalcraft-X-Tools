@@ -81,8 +81,25 @@ export async function login(req: Request, res: Response): Promise<void> {
 }
 
 export async function getMe(req: Request, res: Response): Promise<void> {
-  const user = (req as any).user;
-  res.json({ user });
+  const user = (req as any).user; // Получаем пользователя из middleware
+  
+  if (!user) {
+    res.status(401).json({ message: 'Не авторизован' });
+    return;
+  }
+
+  // Получаем полные данные пользователя из БД
+  const userData = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      role: true
+    }
+  });
+
+  res.json(userData);
 }
 
 export async function updateMe(req: Request, res: Response): Promise<void> {

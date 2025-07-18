@@ -1,16 +1,27 @@
-import axios from 'axios';
+import { api } from "./BaseApi";
 
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL
-});
+export interface AuthResponse {
+  accessToken: string;
+  refreshToken?: string;
+  user: {
+    id: number;
+    email: string;
+    username: string;
+    role: string;
+  };
+}
 
-api.interceptors.response.use(
-  response => response,
-  error => {
-    if (error.response?.status === 401) {
-      // Перенаправляем на логин при 401 ошибке
-      window.location.href = '/login?from=' + encodeURIComponent(window.location.pathname);
-    }
-    return Promise.reject(error);
-  }
-);
+export const login = async (data: { email: string; password: string }): Promise<AuthResponse> => {
+  const response = await api.post('/auth/login', data);
+  return response.data;
+};
+
+export const register = async (data: { email: string; username: string; password: string }): Promise<AuthResponse> => {
+  const response = await api.post('/auth/register', data);
+  return response.data;
+};
+
+export const getMe = async (): Promise<AuthResponse['user']> => {
+  const response = await api.get('/auth/me');
+  return response.data;
+};

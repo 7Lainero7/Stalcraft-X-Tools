@@ -3,7 +3,7 @@ import { runParsers } from '../services/parser/parser.controller';
 
 
 export function scheduleDailySync() {
-  cron.schedule('0 3 * * *', async () => {
+  cron.schedule('0 0 * * *', async () => {
     console.log('🕒 [CRON] Синхронизация данных...');
     try {
       await runParsers();

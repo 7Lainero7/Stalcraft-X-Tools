@@ -40,3 +40,35 @@
 .read-the-docs {
   color: #888;
 }
+
+.object-contain {
+  object-fit: contain;
+}
+
+img {
+  transition: opacity 0.2s ease;
+}
+
+img:not([src]) {
+  opacity: 0;
+}
+/* Улучшение внешнего вида слотов */
+.artifact-slot {
+  transition: all 0.2s ease;
+}
+
+.artifact-slot:hover {
+  transform: scale(1.03);
+  box-shadow: 0 0 0 2px hsl(var(--primary));
+}
+
+.artifact-slot-empty:hover {
+  background-color: hsl(var(--muted));
+}
+
+.artifact-cell {
+  transition: transform 0.2s ease;
+}
+.artifact-cell:hover {
+  transform: scale(1.02);
+}

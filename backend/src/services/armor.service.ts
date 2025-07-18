@@ -1,4 +1,4 @@
-import prisma from './database/database.service';
+import prisma from "./database/database.service";
 
 interface ArmorFilters {
   rank?: string;
@@ -17,11 +17,11 @@ export async function getArmorList(filters: ArmorFilters) {
     color,
     state,
     lang = 'ru',
-    limit = 20,
+    limit = 1000,
     offset = 0,
   } = filters;
 
-  return prisma.armor.findMany({
+  const armors = await prisma.armor.findMany({
     where: {
       ...(rank && { rank }),
       ...(armorClass && { class: armorClass }),
@@ -33,10 +33,24 @@ export async function getArmorList(filters: ArmorFilters) {
         where: { lang },
         select: { name: true },
       },
-      stats: true,
+      stats: {
+        select: {
+          statKey: true,
+          value: true
+        }
+      },
     },
     take: limit,
     skip: offset,
     orderBy: { rank: 'asc' },
   });
+
+  return armors.map(armor => ({
+    id: armor.id,
+    names: armor.names,
+    class: armor.class,
+    rank: armor.rank,
+    iconUrl: armor.iconUrl,
+    stats: armor.stats
+  }));
 }

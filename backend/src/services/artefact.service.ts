@@ -21,13 +21,13 @@ export async function getArtefactList(filters: ArtefactFilters) {
     state,
     freshness,
     lang = 'ru',
-    limit = 20,
+    limit = 1000,
     offset = 0,
     sort,
     order = 'asc',
   } = filters;
 
-  return prisma.artefact.findMany({
+  return await prisma.artefact.findMany({
     where: {
       ...(category && { category }),
       ...(artefactClass && { artefactClass }),
@@ -40,7 +40,14 @@ export async function getArtefactList(filters: ArtefactFilters) {
         where: { lang },
         select: { name: true },
       },
-      effects: true,
+      effects: {
+        select: {
+          effectKey: true,
+          minValue: true,
+          maxValue: true,
+          isThreshold: true
+        }
+      },
     },
     take: limit,
     skip: offset,

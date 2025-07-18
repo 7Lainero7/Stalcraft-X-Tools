@@ -25,22 +25,32 @@ export async function getContainerList(filters: ContainerFilters) {
     order = 'asc',
   } = filters;
 
-  return prisma.container.findMany({
+  const containers = await prisma.container.findMany({
     where: {
       ...(rank && { rank }),
       ...(containerClass && { containerClass }),
       ...(color && { color }),
       ...(state && { state }),
     },
-    include: {
+    select: {
+      id: true,
+      capacity: true, // Убедимся что включаем это поле
+      rank: true,
+      containerClass: true,
       names: {
         where: { lang },
         select: { name: true },
       },
       stats: true,
+      iconUrl: true,
     },
     take: limit,
     skip: offset,
     orderBy: sort ? { [sort]: order } : { rank: 'asc' },
   });
+
+  return containers.map(container => ({
+    ...container,
+    slots: Number(container.capacity) || 0
+}))
 }

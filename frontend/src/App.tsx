@@ -1,35 +1,76 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
+import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AppSidebar } from "@/components/AppSidebar";
+import Builds from "./pages/Builds";
+import CreateBuild from "./pages/CreateBuild";
+import BuildDetails from "./pages/BuildDetails";
+import Auth from "./pages/Auth";
+import NotFound from "./pages/NotFound";
+import { useEffect } from "react";
+import { AuthProvider } from '@/context/AuthContext';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
-function App() {
-  const [count, setCount] = useState(0)
+const queryClient = new QueryClient();
+
+const App = () => {
+  useEffect(() => {
+    const isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.classList.add(isDark ? 'dark' : 'light');
+  }, []);
 
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
-}
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <AuthProvider>
+            <SidebarProvider defaultOpen>
+              <div className="min-h-screen flex w-full bg-background">
+                <AppSidebar />
+                <main className="flex-1 flex flex-col">
+                  <header className="h-12 flex items-center border-b border-border bg-card/50 backdrop-blur px-4">
+                    <SidebarTrigger className="mr-4" />
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-gradient-primary rounded flex items-center justify-center">
+                        <span className="text-primary-foreground font-bold text-xs">SC</span>
+                      </div>
+                      <span className="font-semibold text-foreground">STALCRAFT Builds</span>
+                    </div>
+                  </header>
+                  <div className="flex-1 overflow-auto">
+                    <Routes>
+                      <Route path="/auth" element={<Auth />} />
+                      <Route path="/" element={
+                        <ProtectedRoute>
+                          <Builds />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/create" element={
+                        <ProtectedRoute>
+                          <CreateBuild />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/build/:id" element={
+                        <ProtectedRoute>
+                          <BuildDetails />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </div>
+                </main>
+              </div>
+            </SidebarProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
-export default App
+export default App;

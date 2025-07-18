@@ -15,19 +15,50 @@ interface ArtefactFilters {
 }
 
 export async function getArtefacts(req: Request, res: Response): Promise<void> {
-  const filters: ArtefactFilters = {
-    category: typeof req.query.category === 'string' ? req.query.category : undefined,
-    artefactClass: typeof req.query.artefactClass === 'string' ? req.query.artefactClass : undefined,
-    color: typeof req.query.color === 'string' ? req.query.color : undefined,
-    state: typeof req.query.state === 'string' ? req.query.state : undefined,
-    freshness: typeof req.query.freshness === 'string' ? req.query.freshness : undefined,
-    lang: typeof req.query.lang === 'string' ? req.query.lang : 'ru',
-    limit: req.query.limit ? Number(req.query.limit) : undefined,
-    offset: req.query.offset ? Number(req.query.offset) : undefined,
-    sort: typeof req.query.sort === 'string' ? req.query.sort : undefined,
-    order: req.query.order === 'desc' ? 'desc' : 'asc',
-  };
+  try {
+    const filters: ArtefactFilters = {
+      category: req.query.category as string | undefined,
+      artefactClass: req.query.artefactClass as string | undefined,
+      color: req.query.color as string | undefined,
+      state: req.query.state as string | undefined,
+      freshness: req.query.freshness as string | undefined,
+      lang: (req.query.lang as string) || 'ru',
+      limit: req.query.limit ? parseInt(req.query.limit as string) : undefined,
+      offset: req.query.offset ? parseInt(req.query.offset as string) : undefined,
+      sort: req.query.sort as string | undefined,
+      order: req.query.order === 'desc' ? 'desc' : 'asc',
+    };
 
-  const artefacts = await getArtefactList(filters);
-  res.json(artefacts);
+    const artefacts = await getArtefactList(filters);
+    
+    // Форматируем данные для фронтенда
+    const formattedArtefacts = artefacts.map(artefact => ({
+      id: artefact.id,
+      names: artefact.names,
+      artefactClass: artefact.artefactClass,
+      category: artefact.category,
+      color: artefact.color,
+      state: artefact.state,
+      freshness: artefact.freshness,
+      iconUrl: artefact.iconUrl,
+      effects: artefact.effects.map(effect => ({
+        effectKey: effect.effectKey,
+        minValue: effect.minValue,
+        maxValue: effect.maxValue,
+        isThreshold: effect.isThreshold
+      })),
+      weight: artefact.weight,
+      durability: artefact.durability,
+      maxDurability: artefact.maxDurability,
+      price: artefact.price,
+      description: artefact.description,
+      createdAt: artefact.createdAt,
+      updatedAt: artefact.updatedAt
+    }));
+
+    res.json(formattedArtefacts);
+  } catch (error) {
+    console.error('Error fetching artefacts:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 }
