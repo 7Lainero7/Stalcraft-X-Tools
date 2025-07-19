@@ -72,7 +72,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar
-      className={collapsed ? "w-14" : "w-64"}
+      className={collapsed ? "w-20" : "w-77"}
       collapsible="icon"
     >
       <div className="p-4 border-b border-border">
@@ -82,8 +82,8 @@ export function AppSidebar() {
           </div>
           {!collapsed && (
             <div className="flex flex-col">
-              <span className="font-semibold text-foreground">STALCRAFT</span>
-              <span className="text-xs text-muted-foreground">Builds</span>
+              <span className="font-semibold text-foreground">STALCRAFT: X</span>
+              <span className="text-xs text-muted-foreground">Tools</span>
             </div>
           )}
         </div>
@@ -115,7 +115,7 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
         
-        <div className="mt-auto p-4 space-y-4">
+        <div className="mt-auto p-1 space-y-4">
           {isAuthenticated && (
             <div className={`flex items-center ${collapsed ? 'justify-center' : 'justify-between'}`}>
               {!collapsed && (
@@ -137,7 +137,7 @@ export function AppSidebar() {
                 onClick={handleLogout}
                 className="text-destructive"
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-4 w-16" />
                 {!collapsed && <span className="ml-2">Выйти</span>}
               </Button>
             </div>

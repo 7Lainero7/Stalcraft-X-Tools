@@ -34,21 +34,32 @@ export async function getBuilds(req: Request, res: Response): Promise<void> {
     isPublic: req.query.isPublic === 'true' ? true : req.query.isPublic === 'false' ? false : undefined,
     isTemplate: req.query.isTemplate === 'true' ? true : req.query.isTemplate === 'false' ? false : undefined,
     tags: typeof req.query.tags === 'string' ? req.query.tags : undefined,
+    search: typeof req.query.search === 'string' ? req.query.search : undefined,
     lang: typeof req.query.lang === 'string' ? req.query.lang : 'ru',
-    limit: req.query.limit ? Number(req.query.limit) : undefined,
-    offset: req.query.offset ? Number(req.query.offset) : undefined,
-    sort: typeof req.query.sort === 'string' ? req.query.sort : undefined,
+    limit: req.query.limit ? Number(req.query.limit) : 10,
+    offset: req.query.offset ? Number(req.query.offset) : 0,
+    sort: typeof req.query.sort === 'string' ? req.query.sort : 'likesCount',
     order: req.query.order === 'asc' ? 'asc' : 'desc',
+    page: req.query.page ? Number(req.query.page) : 1,
   };
 
-  const builds = await getBuildList(filters);
-  
-  const formattedBuilds = builds.map(build => ({
-    ...build,
-    tags: build.buildTags.map(bt => bt.tag.name)
-  }));
-  
-  res.json(formattedBuilds);
+  try {
+    const builds = await getBuildList(filters);
+    
+    const formattedBuilds = builds.map(build => ({
+      ...build,
+      tags: build.buildTags.map(bt => bt.tag.name),
+      isFavorite: build.favorites && build.favorites.length > 0,
+      likesCount: build.likes ? build.likes.length : 0
+    }));
+    
+    res.json(formattedBuilds);
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Ошибка при загрузке сборок',
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
 }
 
 export async function getBuild(req: Request, res: Response): Promise<void> {
@@ -243,9 +254,23 @@ export async function getFavoritesHandler(req: Request, res: Response): Promise<
 }
 
 export async function getPopularTagsHandler(req: Request, res: Response) {
-  const limit = req.query.limit ? Number(req.query.limit) : 10;
-  const tags = await getPopularTags(limit);
-  res.json(tags);
+  try {
+    const limit = req.query.limit ? Number(req.query.limit) : 10;
+    const tags = await getPopularTags(limit);
+    
+    // Преобразуем данные для фронтенда
+    const formattedTags = tags.map(tag => ({
+      name: tag.name,
+      count: tag._count?.buildTags || 0
+    }));
+    
+    res.json(formattedTags);
+  } catch (error) {
+    res.status(500).json({ 
+      message: 'Ошибка при получении популярных тегов',
+      error: error instanceof Error ? error.message : 'Unknown error' 
+    });
+  }
 }
 
 export async function getBuildsByTagHandler(req: Request, res: Response) {

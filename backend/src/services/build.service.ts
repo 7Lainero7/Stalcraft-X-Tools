@@ -5,11 +5,13 @@ interface BuildFilters {
   isPublic?: boolean;
   isTemplate?: boolean;
   tags?: string;
+  search?: string;
   lang?: string;
   limit?: number;
   offset?: number;
   sort?: string;
   order?: 'asc' | 'desc';
+  page?: number;
 }
 
 export async function getBuildList(filters: BuildFilters) {
@@ -18,28 +20,51 @@ export async function getBuildList(filters: BuildFilters) {
     isPublic,
     isTemplate,
     tags,
+    search,
     lang = 'ru',
-    limit = 20,
+    limit = 10,
     offset = 0,
-    sort,
+    sort = 'likesCount',
     order = 'desc',
+    page = 1
   } = filters;
 
-  return prisma.build.findMany({
-    where: {
-      ...(userId && { userId }),
-      ...(isPublic !== undefined && { isPublic }),
-      ...(isTemplate !== undefined && { isTemplate }),
-      ...(tags && { 
+  const skip = (page - 1) * limit;
+
+  const where: any = {
+    ...(userId && { userId }),
+    ...(isPublic !== undefined && { isPublic }),
+    ...(isTemplate !== undefined && { isTemplate }),
+    ...(tags && { 
+      buildTags: {
+        some: {
+          tag: {
+            name: tags
+          }
+        }
+      }
+    }),
+  };
+
+  // Добавляем поиск по названию, автору и тегам
+  if (search) {
+    where.OR = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { user: { username: { contains: search, mode: 'insensitive' } } },
+      { 
         buildTags: {
           some: {
             tag: {
-              name: tags
+              name: { contains: search, mode: 'insensitive' }
             }
           }
         }
-      }),
-    },
+      }
+    ];
+  }
+
+  return prisma.build.findMany({
+    where,
     include: {
       user: { select: { id: true, username: true, role: true } },
       armor: {
@@ -68,10 +93,13 @@ export async function getBuildList(filters: BuildFilters) {
         }
       },
       likes: true,
+      favorites: true
     },
     take: limit,
-    skip: offset,
-    orderBy: sort ? { [sort]: order } : { createdAt: 'desc' },
+    skip,
+    orderBy: { 
+      [sort]: order 
+    },
   });
 }
 
@@ -430,7 +458,8 @@ export async function getPopularTags(limit = 10) {
         _count: 'desc',
       },
     },
-    include: {
+    select: {
+      name: true,
       _count: {
         select: { buildTags: true },
       },
