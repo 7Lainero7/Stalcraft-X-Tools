@@ -3,7 +3,7 @@ import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Armor } from '@/api/Armor';
+import { Armor } from "@/api/Armor";
 
 export function ArmorSearch({ 
   armors = [], 
@@ -17,24 +17,12 @@ export function ArmorSearch({
   className?: string;
 }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filters, setFilters] = useState({
-    rank: '',
-    type: '',
-  });
 
   // Фильтрация брони с защитой от undefined
   const filteredArmor = armors.filter(armor => {
     const name = armor.name?.toLowerCase() || '';
-    const type = armor.type || '';
-    const rank = armor.rank || '';
     const search = searchTerm.toLowerCase();
-    
-    // Проверка соответствия поиску и фильтрам
-    const matchesSearch = name.includes(search);
-    const matchesRank = filters.rank ? rank === filters.rank : true;
-    const matchesType = filters.type ? type === filters.type : true;
-    
-    return matchesSearch && matchesRank && matchesType;
+    return name.includes(search);
   });
 
   return (
@@ -48,7 +36,7 @@ export function ArmorSearch({
       >
         <SelectTrigger className="w-full">
           <SelectValue placeholder="Выберите броню">
-            {selectedArmor ? (
+            {selectedArmor && (
               <div className="flex items-center gap-2">
                 {selectedArmor.imageUrl && (
                   <img
@@ -59,7 +47,7 @@ export function ArmorSearch({
                 )}
                 <span>{selectedArmor.name || 'Без названия'}</span>
               </div>
-            ) : null}
+            )}
           </SelectValue>
         </SelectTrigger>
         
@@ -94,8 +82,8 @@ export function ArmorSearch({
                     <div>
                       <div className="font-medium">{armor.name || 'Без названия'}</div>
                       <div className="flex gap-2 mt-1">
-                        <Badge variant="outline">{type || 'Не указан'}</Badge>
-                        <Badge variant="secondary">{rank || 'Не указан'}</Badge>
+                        <Badge variant="outline">{armor.type || 'Не указан'}</Badge>
+                        <Badge variant="secondary">{armor.rank || 'Не указан'}</Badge>
                       </div>
                     </div>
                   </div>

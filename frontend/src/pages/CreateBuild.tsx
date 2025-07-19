@@ -13,12 +13,11 @@ import { useContainers } from "@/hooks/useContainers";
 import { ContainerSearch } from "@/components/ContainerSearch";
 import { ArtifactSearch } from "@/components/ArtefactSearch";
 import { useArtifacts } from "@/hooks/useArtefact";
-
-interface Stat {
-  base: number;
-  bonus: number;
-  total: number;
-}
+import { saveBuild } from "@/api/build";
+import { api } from "@/api/BaseApi";
+import { toast } from "@/components/ui/use-toast";
+import { useSaveBuild } from "@/hooks/useBuild"; 
+import { useNavigate } from 'react-router-dom';
 
 interface FinalStats {
   [key: string]: {
@@ -49,24 +48,45 @@ interface Container {
 interface Armor {
   id: string;
   name: string;
-  type: string; // class
+  type: string;
   rank: string;
-  imageUrl: string; // iconUrl
-  stats: Record<string, number>; // преобразованные stats
+  imageUrl: string;
+  stats: Record<string, number>;
 }
 
-export default function CreateBuild() {
+interface CreateBuildProps {
+  editMode?: boolean;
+  buildId?: number;
+  initialData?: {
+    buildName: string;
+    description: string;
+    selectedArmor: Armor | null;
+    selectedContainer: Container | null;
+    selectedArtifacts: Artifact[];
+    tags: string[];
+  };
+  onSuccess?: () => void;
+}
+
+export default function CreateBuild({ 
+  editMode = false, 
+  buildId, // Получаем id как пропс
+  initialData, 
+  onSuccess 
+}: CreateBuildProps) {
   const { data: armorList = [], isLoading, error } = useArmor();
   const { data: containerList, isLoading: isLoadingContainers, error: containerError } = useContainers();
   const { data: artifactList, isLoading: isLoadingArtifacts, error: artifactError } = useArtifacts();
   
-  const [buildName, setBuildName] = useState("");
-  const [description, setDescription] = useState("");
-  const [selectedContainer, setSelectedContainer] = useState<Container | null>(null);
-  const [selectedArmor, setSelectedArmor] = useState<Armor | null>(null);
-  const [selectedArtifacts, setSelectedArtifacts] = useState<Artifact[]>([]);
-  const [tags, setTags] = useState<string[]>([]);
+  const [buildName, setBuildName] = useState(initialData?.buildName || "");
+  const [description, setDescription] = useState(initialData?.description || "");
+  const [selectedContainer, setSelectedContainer] = useState<Container | null>(initialData?.selectedContainer || null);
+  const [selectedArmor, setSelectedArmor] = useState<Armor | null>(initialData?.selectedArmor || null);
+  const [selectedArtifacts, setSelectedArtifacts] = useState<Artifact[]>(initialData?.selectedArtifacts || []);
+  const [tags, setTags] = useState<string[]>(initialData?.tags || []);
   const [newTag, setNewTag] = useState("");
+  const navigate = useNavigate();
+  
 
   const addArtifact = useCallback((artifact: Artifact) => {
     if (selectedContainer && selectedArtifacts.length < selectedContainer.slots) {
@@ -93,78 +113,99 @@ export default function CreateBuild() {
     return Math.round(num * 10) / 10;
   }, []);
 
-  const calculateStats = useCallback((): FinalStats => {
-  const stats: FinalStats = {};
+  const calculateStats = useCallback(() => {
+    const stats = {};
 
-  // 1. Характеристики брони (исключая durability)
-  if (selectedArmor) {
-    Object.entries(selectedArmor.stats).forEach(([statName, value]) => {
-      if (statName !== 'durability') {
-        stats[statName] = {
-          base: value,
-          bonus: 0,
-          total: value
-        };
-      }
+    // Базовые значения
+    stats.health = { base: 100, bonus: 0, total: 100 };
+    stats['Скорость передвижения'] = { base: 100, bonus: 0, total: 100 };
+
+    // Добавляем характеристики брони
+    if (selectedArmor) {
+      Object.entries(selectedArmor.stats || {}).forEach(([stat, value]) => {
+        stats[stat] = { base: value, bonus: 0, total: value };
+      });
+    }
+
+    // Добавляем бонусы артефактов
+    selectedArtifacts.forEach(art => {
+      Object.entries(art.stats || {}).forEach(([stat, value]) => {
+        if (!stats[stat]) {
+          stats[stat] = { base: 0, bonus: value, total: value };
+        } else {
+          stats[stat].bonus += value;
+          stats[stat].total += value;
+        }
+      });
     });
-  }
 
-  // 2. Внутренняя защита контейнера
-  if (selectedContainer?.bonuses?.internalProtection) {
-    const protection = selectedContainer.bonuses.internalProtection;
-    stats['internalProtection'] = {
-      base: 0,
-      bonus: protection,
-      total: protection
-    };
-  }
-
-  // 3. Характеристики артефактов
-  selectedArtifacts.forEach(artifact => {
-    Object.entries(artifact.stats).forEach(([statName, value]) => {
-      if (!stats[statName]) {
-        stats[statName] = {
-          base: 0,
-          bonus: value,
-          total: value
-        };
-      } else {
-        stats[statName].bonus += value;
-        stats[statName].total += value;
-      }
+    // Округляем значения
+    Object.keys(stats).forEach(stat => {
+      stats[stat] = {
+        base: roundNumber(stats[stat].base),
+        bonus: roundNumber(stats[stat].bonus),
+        total: roundNumber(stats[stat].total)
+      };
     });
-  });
 
-  // Округление до 0.1
-  Object.keys(stats).forEach(key => {
-    stats[key] = {
-      base: Math.round(stats[key].base * 10) / 10,
-      bonus: Math.round(stats[key].bonus * 10) / 10,
-      total: Math.round(stats[key].total * 10) / 10
-    };
-  });
-
-  return stats;
-}, [selectedArmor, selectedContainer, selectedArtifacts]);
+    return stats;
+  }, [selectedArmor, selectedArtifacts]);
 
   const finalStats = calculateStats();
 
-  const saveBuild = useCallback(() => {
-    if (!buildName.trim() || !selectedContainer || selectedArtifacts.length === 0) return;
+  const { mutate: saveBuildMutation, isPending: isSaving } = useSaveBuild();
+
+  const prepareStatsForBackend = (stats: FinalStats) => {
+    const result: Record<string, { base: number; bonus: number; total: number }> = {};
     
-    const build = {
-      name: buildName,
-      description,
-      container: selectedContainer,
-      armor: selectedArmor,
-      artifacts: selectedArtifacts,
-      tags,
-      stats: finalStats,
-    };
-    
-    console.log("Сборка сохранена:", build);
-    // Здесь будет отправка на сервер
-  }, [buildName, description, selectedContainer, selectedArmor, selectedArtifacts, tags, finalStats]);
+    Object.entries(stats).forEach(([key, value]) => {
+      result[key] = {
+        base: value.base,
+        bonus: value.bonus,
+        total: value.total
+      };
+    });
+
+    return result;
+  };
+
+  const handleSaveBuild = useCallback(async () => {
+    try {
+      // Валидация
+      if (!buildName.trim()) throw new Error("Введите название сборки");
+      if (!selectedArmor?.id) throw new Error("Выберите броню");
+      if (!selectedContainer?.id) throw new Error("Выберите контейнер");
+      if (!selectedArtifacts.length) throw new Error("Добавьте хотя бы один артефакт");
+
+      const buildData = {
+        name: buildName,
+        description: description || null,
+        armorId: selectedArmor.id,
+        containerId: selectedContainer.id,
+        artefactIds: selectedArtifacts.map(a => a.id),
+        tags: tags || []
+        // totalStats убрано
+      };
+
+      if (editMode && buildId) {
+        await api.put(`/builds/${buildId}`, buildData);
+        toast({ title: "Сборка обновлена" });
+        onSuccess?.(); // Вот здесь вызывается колбэк
+      } else {
+        const response = await api.post('/builds', buildData);
+        navigate(`/build/${response.data.id}`);
+        toast({ title: "Сборка создана" });
+      }
+    } catch (error) {
+      console.error('Save error:', error);
+      toast({
+        title: "Ошибка",
+        description: error.response?.data?.message || error.message,
+        variant: "destructive"
+      });
+    }
+  }, [buildName, description, selectedArmor, selectedContainer, 
+      selectedArtifacts, tags, editMode, buildId, onSuccess]);
 
   if (isLoading || isLoadingContainers || isLoadingArtifacts) {
     return (
@@ -198,7 +239,7 @@ export default function CreateBuild() {
   return (
     <div className="p-6 space-y-6">
       <h1 className="text-3xl font-bold bg-gradient-primary bg-clip-text text-transparent">
-        Создать сборку
+        {editMode ? "Редактировать сборку" : "Создать сборку"}
       </h1>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -372,23 +413,48 @@ export default function CreateBuild() {
             </CardHeader>
             <CardContent>
               {Object.keys(finalStats).length > 0 ? (
-                <div className="grid grid-cols-1 gap-3 max-h-[400px] overflow-y-auto">
-                  {Object.entries(finalStats).map(([stat, { base, bonus, total }]) => (
-                    <div key={stat} className="flex flex-col p-2 rounded bg-muted/30">
+                <div className="grid grid-cols-1 gap-3 overflow-y-auto">
+                  {/* Приведенная живучесть - показываем первой если есть */}
+                  {finalStats.effectiveHealth && (
+                    <div key="effectiveHealth" className="flex flex-col p-2 rounded bg-primary/10">
                       <div className="flex justify-between items-center">
-                        <span className="text-sm font-medium capitalize">{stat}</span>
+                        <span className="text-sm font-medium">Приведённая живучесть</span>
                         <span className="font-bold text-primary">
-                          {total.toFixed(1)}
+                          {finalStats.effectiveHealth.total.toFixed(1)}
                         </span>
                       </div>
-                      {(base !== 0 || bonus !== 0) && (
-                        <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                          <span>База: {base.toFixed(1)}</span>
-                          <span>Бонус: {bonus > 0 ? '+' : ''}{bonus.toFixed(1)}</span>
-                        </div>
-                      )}
+                      <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                        <span>База: {finalStats.effectiveHealth.base.toFixed(1)}</span>
+                        <span>Бонус: +{finalStats.effectiveHealth.bonus.toFixed(1)}</span>
+                      </div>
                     </div>
-                  ))}
+                  )}
+
+                  {/* Остальные характеристики */}
+                  {Object.entries(finalStats)
+                    .filter(([key]) => 
+                      key !== 'effectiveHealth' && 
+                      key !== 'durability' && 
+                      key !== 'weight'
+                    )
+                    .map(([stat, { base, bonus, total }]) => (
+                      <div key={stat} className="flex flex-col p-2 rounded bg-muted/30">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium capitalize">
+                            {stat === 'bulletResistance' ? 'Пулестойкость' : stat}
+                          </span>
+                          <span className="font-bold text-primary">
+                            {total.toFixed(1)}
+                          </span>
+                        </div>
+                        {(base !== 0 || bonus !== 0) && (
+                          <div className="flex justify-between text-xs text-muted-foreground mt-1">
+                            <span>База: {base.toFixed(1)}</span>
+                            <span>Бонус: {bonus > 0 ? '+' : ''}{bonus.toFixed(1)}</span>
+                          </div>
+                        )}
+                      </div>
+                    ))}
                 </div>
               ) : (
                 <p className="text-muted-foreground text-center">
@@ -401,15 +467,25 @@ export default function CreateBuild() {
       </div>
 
       <div className="flex justify-end">
-        <Button 
-          onClick={saveBuild}
-          disabled={!buildName.trim() || !selectedContainer || selectedArtifacts.length === 0}
-          className="gap-2"
-        >
-          <Save className="h-4 w-4" />
-          Сохранить сборку
-        </Button>
-      </div>
+      <Button 
+      onClick={handleSaveBuild}
+      disabled={
+        !buildName.trim() || 
+        !selectedContainer || 
+        !selectedArmor || 
+        selectedArtifacts.length === 0 || 
+        isSaving
+      }
+      className="gap-2"
+    >
+      {isSaving ? (
+        <Loader2 className="h-4 w-4 animate-spin" />
+      ) : (
+        <Save className="h-4 w-4" />
+      )}
+      {isSaving ? "Сохранение..." : "Сохранить сборку"}
+    </Button>
+    </div>
     </div>
   );
 }

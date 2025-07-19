@@ -13,6 +13,8 @@ import NotFound from "./pages/NotFound";
 import { useEffect } from "react";
 import { AuthProvider } from '@/context/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import EditBuildPage from "./pages/EditBuildPage";
+
 
 const queryClient = new QueryClient();
 
@@ -58,6 +60,11 @@ const App = () => {
                       <Route path="/build/:id" element={
                         <ProtectedRoute>
                           <BuildDetails />
+                        </ProtectedRoute>
+                      } />
+                      <Route path="/build/:id/edit" element={
+                        <ProtectedRoute>
+                          <EditBuildPage />
                         </ProtectedRoute>
                       } />
                       <Route path="*" element={<NotFound />} />

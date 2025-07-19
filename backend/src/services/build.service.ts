@@ -83,6 +83,7 @@ export async function getBuildById(id: number, lang = 'ru') {
       armor: {
         include: {
           names: { where: { lang }, select: { name: true } },
+          stats: true,
         },
       },
       container: {
@@ -99,6 +100,7 @@ export async function getBuildById(id: number, lang = 'ru') {
             },
           },
         },
+        orderBy: { slot: 'asc' }
       },
       buildTags: {
         include: {
@@ -112,51 +114,72 @@ export async function getBuildById(id: number, lang = 'ru') {
 
 interface CreateBuildData {
   userId: number;
+  name: string;
+  description?: string;
   armorId: string;
   containerId: string;
   artefactIds: string[];
+  totalStats?: Record<string, any>;
+  totalWeight?: number;
+  totalCost?: number;
   isPublic?: boolean;
   isTemplate?: boolean;
   tags?: string[];
-  name?: string;
-  description?: string;
 }
 
-export async function createBuild(data: CreateBuildData) {
-  const tags = data.tags?.length ? await findOrCreateTags(data.tags) : [];
+export async function createBuild(data: {
+    userId: number;
+    name: string;
+    description?: string | null;
+    armorId: string;
+    containerId: string;
+    artefactIds: string[];
+    tags?: string[];
+  }) {
+    return await prisma.$transaction(async (prisma) => {
+      // 1. Создаем или находим теги
+      const tagOperations = data.tags?.map(tagName => 
+        prisma.tag.upsert({
+          where: { name: tagName },
+          create: { name: tagName },
+          update: {}
+        })
+      ) || [];
 
-  return prisma.build.create({
-    data: {
-      userId: data.userId,
-      armorId: data.armorId,
-      containerId: data.containerId,
-      name: data.name || 'Новый билд',
-      description: data.description || null,
-      buildData: '{}',
-      isPublic: data.isPublic ?? false,
-      isTemplate: data.isTemplate ?? false,
-      artefacts: {
-        create: data.artefactIds.map((id, index) => ({
-          slot: index,
-          artefact: { connect: { id } },
-        })),
-      },
-      buildTags: {
-        create: tags.map(tag => ({
-          tag: {
-            connect: { id: tag.id }
+      const tags = await Promise.all(tagOperations);
+
+      // 2. Создаем сборку
+      const build = await prisma.build.create({
+        data: {
+          userId: data.userId,
+          name: data.name,
+          description: data.description,
+          armorId: data.armorId,
+          containerId: data.containerId,
+          artefacts: {
+            create: data.artefactIds.map((artefactId, index) => ({
+              slot: index,
+              artefactId: artefactId
+            }))
+          },
+          buildTags: {
+            create: tags.map(tag => ({
+              tagId: tag.id
+            }))
           }
-        })),
-      },
-    },
-    include: {
-      artefacts: true,
-      buildTags: {
+        },
         include: {
-          tag: true
+          armor: true,
+          container: true,
+          artefacts: {
+            include: {
+              artefact: true
+            }
+          }
         }
-      },
-    },
+      });
+
+      return build;
   });
 }
 
@@ -186,21 +209,18 @@ export async function updateBuild(id: number, data: UpdateBuildData) {
   return prisma.build.update({
     where: { id },
     data: {
+      name: data.name,
+      description: data.description,
       armorId: data.armorId,
       containerId: data.containerId,
-      isPublic: data.isPublic,
-      isTemplate: data.isTemplate,
       buildTags: {
         deleteMany: {},
         create: tags.map(tag => ({
-          tag: {
-            connect: { id: tag.id }
-          }
+          tag: { connect: { id: tag.id } }
         })),
       },
-      name: data.name,
-      description: data.description,
       ...(artefactUpdate && { artefacts: artefactUpdate }),
+      // totalStats больше не обновляем
     },
     include: {
       artefacts: true,

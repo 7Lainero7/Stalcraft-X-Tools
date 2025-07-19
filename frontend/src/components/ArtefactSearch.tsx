@@ -103,9 +103,9 @@ export function ArtifactSearch({ artifacts, selectedArtifact, onSelect, classNam
           className="p-0"
           // Предотвращаем автоматическое закрытие
           onPointerDownOutside={(e) => e.preventDefault()}
-          onInteractOutside={(e) => {
+          onPointerDownOutside={(e) => {
             const target = e.target as HTMLElement;
-            if (!target.closest('.remove-artifact-btn')) {
+            if (inputRef.current?.contains(target)) {
               e.preventDefault();
             }
           }}

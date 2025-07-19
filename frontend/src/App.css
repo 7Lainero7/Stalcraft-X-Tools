@@ -72,3 +72,13 @@ img:not([src]) {
 .artifact-cell:hover {
   transform: scale(1.02);
 }
+
+.object-contain {
+  object-fit: contain;
+}
+.w-16 {
+  width: 4rem;
+}
+.h-16 {
+  height: 4rem;
+}

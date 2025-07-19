@@ -155,7 +155,7 @@ model Build {
   name        String
   description String?
 
-  buildData Json @map("build_data")
+  buildData Json? @map("build_data")
 
   armorId String? @map("armor_id")
   armor   Armor?  @relation("ArmorInBuild", fields: [armorId], references: [id])
@@ -172,7 +172,7 @@ model Build {
   totalWeight Float? @map("total_weight")
   totalCost   Float? @map("total_cost")
 
-  isPublic   Boolean  @default(false) @map("is_public")
+  isPublic   Boolean  @default(true) @map("is_public")
   isTemplate Boolean  @default(false) @map("is_template")
   likesCount Int @default(0) @map("likes_count")
   viewsCount Int @default(0) @map("views_count")
