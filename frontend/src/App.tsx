@@ -41,7 +41,7 @@ const App = () => {
                       <div className="w-6 h-6 bg-gradient-primary rounded flex items-center justify-center">
                         <span className="text-primary-foreground font-bold text-xs">SC</span>
                       </div>
-                      <span className="font-semibold text-foreground">STALCRAFT Builds</span>
+                      <span className="font-semibold text-foreground">STALCRAFT: X Builds</span>
                     </div>
                   </header>
                   <div className="flex-1 overflow-auto">
