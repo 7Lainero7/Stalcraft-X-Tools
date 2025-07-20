@@ -20,7 +20,9 @@ app.use(cookieParser());
 app.use(cors({
   origin: [
     'http://localhost:3001',
-    /\.tunnel4\.com$/ // Регулярное выражение для всех поддоменов
+    /\.tunnel4\.com$/,
+    /\.ngrok-free\.app$/, // все домены ngrok
+    'https://700e13fd018b.ngrok-free.app' // конкретный домен
   ],
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization']

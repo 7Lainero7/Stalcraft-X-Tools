@@ -15,7 +15,7 @@ export default defineConfig(({ mode }) => ({
         rewrite: path => path.replace(/^\/api/, '')
       }},    
     allowedHosts: [
-      'c3bcf9117481.ngrok-free.app',
+      '700e13fd018b.ngrok-free.app',
       '.ngrok-free.app',
       '.tunnel4.com',
       'http://34a9426c-4e3e-4677-aa12-467bf4012cc3.tunnel4.com'
